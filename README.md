@@ -23,6 +23,7 @@ extension there, or you can choose to install pg_pgbouncer extension to your exi
 
     ```
     echo "shared_preload_libraries = 'pg_pgbouncer'" >> ~/.pgrx/data-16/postgresql.conf
+    echo "pg_pgbouncer.database = 'pg_pgbouncer'" >> ~/.pgrx/data-16/postgresql.conf
     ```
 
     ```
@@ -46,12 +47,18 @@ extension there, or you can choose to install pg_pgbouncer extension to your exi
     cargo pgrx install
     ```
 
-    Create a database named as `pg_pgbouncer`:
+    Configure the database name in which you will create the pg_pgbouncer extension.
     ```
-    CREATE DATABASE pg_pgouncer;
+    ALTER SYSTEM SET pg_pgbouncer.database='<dbname>';
     ```
+    This command requires a restart of the postgres server.
 
-    Connect to the database `pg_pgbouncer` and create the extension there:
+    Connect to the database pg_pgbouncer.database and create the extension there:
     ```
     DROP EXTENSION IF EXISTS pg_pgbouncer; CREATE EXTENSION pg_pgbouncer;
+    ```
+
+    Check the postgres server log. If you see the below line, pg_pgbouncer is working.
+    ```
+    LOG:  Hello from inside the PgBouncer Manager BGWorker!
     ```

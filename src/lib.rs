@@ -26,6 +26,7 @@ mod background_worker;
 mod child;
 mod database;
 mod group;
+mod gucs;
 mod hba;
 mod helpers;
 mod manager;

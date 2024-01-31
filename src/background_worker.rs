@@ -1,8 +1,29 @@
 use crate::gucs::PG_PGBOUNCER_DATABASE;
 use crate::*;
+use pgrx::pg_sys::{ConditionVariable, ConditionVariableInit};
+use pgrx::shmem::*;
+use pgrx::PgLwLock;
+use pgrx::{pg_shmem_init, warning};
+use std::borrow::BorrowMut;
+
+// types behind a `LwLock` must derive/implement `Copy` and `Clone`
+#[derive(Copy, Clone, Default)]
+
+pub struct Reconfiguremsg {
+    pub count: u64,
+    pub pid: pg_sys::pid_t,
+    pub cv: ConditionVariable,
+}
+
+unsafe impl PGRXSharedMemory for Reconfiguremsg {}
+unsafe impl Sync for Reconfiguremsg {}
+unsafe impl Send for Reconfiguremsg {}
+
+pub static RECONFIGURE: PgLwLock<Reconfiguremsg> = PgLwLock::new();
 
 #[pg_guard]
 pub extern "C" fn _PG_init() {
+    pg_shmem_init!(RECONFIGURE);
     gucs::init();
     BackgroundWorkerBuilder::new("PgBouncer Manager")
         .set_function("pgbouncer_manager_main")
@@ -38,6 +59,10 @@ pub extern "C" fn pgbouncer_manager_main() {
             | SignalWakeFlags::SIGCHLD,
     );
 
+    unsafe {
+        ConditionVariableInit(RECONFIGURE.exclusive().cv.borrow_mut());
+    }
+
     // we want to be able to use SPI against the specified database (pg_pgbouncer), as the superuser which
     // did the initdb. You can specify a specific user with Some("my_user")
     BackgroundWorker::connect_worker_to_spi(Some(database_name), None);
@@ -47,11 +72,17 @@ pub extern "C" fn pgbouncer_manager_main() {
         BackgroundWorker::get_name(),
     );
 
+    // put the process id in shared memory so that reconfigure callers
+    // can signal the process.
+    let mut msg = RECONFIGURE.exclusive();
+    msg.pid = unsafe { pg_sys::MyProcPid };
+    drop(msg);
+
     create_dir_all(TEMP_DIR).unwrap();
     let mut state = ManagerState::default();
 
     // wake up every 10s or if we received a signal
-    while BackgroundWorker::wait_latch(Some(Duration::from_secs(10))) {
+    while BackgroundWorker::wait_latch(None) {
         if let Err(err) = state.do_main_loop() {
             warning!("error in main pg_pgbouncer loop: {err}");
             // We're in an unknown state because of the error. Clear out previous_groups to

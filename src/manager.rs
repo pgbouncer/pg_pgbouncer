@@ -1,4 +1,7 @@
+use crate::background_worker::RECONFIGURE;
 use crate::*;
+use pgrx::pg_sys::ConditionVariableBroadcast;
+use std::borrow::BorrowMut;
 
 #[derive(Default)]
 pub struct ManagerState {
@@ -11,6 +14,7 @@ impl ManagerState {
     pub fn do_main_loop(&mut self) -> Result<()> {
         if BackgroundWorker::sighup_received() {
             // on SIGHUP, you might want to reload some external configuration or something
+            log!("SIGHUP received. Reconfiguring");
         }
         if BackgroundWorker::sigint_received() {
             panic!("ASKED TO QUIT")
@@ -18,6 +22,22 @@ impl ManagerState {
         self.groups = BackgroundWorker::transaction(Group::all)?;
         self.create_all()?;
         self.cleanup_old_files()?;
+
+        let mut msg = RECONFIGURE.exclusive();
+        log!(
+            "Increase reconfiguration count from { } to { }",
+            msg.count,
+            msg.count + 1
+        );
+
+        msg.count += 1;
+
+        unsafe {
+            ConditionVariableBroadcast(msg.cv.borrow_mut());
+        }
+
+        drop(msg);
+
         Ok(())
     }
 

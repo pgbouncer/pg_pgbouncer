@@ -1,5 +1,9 @@
 # pg_pgbouncer
 
+**DISCLAIMER: This is alpha quality software at the moment. It is not
+recommended for production use (yet). Some API design decisions might
+significantly change too.**
+
 ## How to compile and run
 
 ### Install the Rust toolchain

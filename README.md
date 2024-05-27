@@ -7,6 +7,10 @@
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
+### Configure Rust for more speedy compilation (optional)
+
+See [`CONTRIBUTING.md`][`https://github.com/pgbouncer/pg_pgbouncer/blob/main/README.md`] for details
+
 ### Install `cargo pgrx`
 ```
 cargo install cargo-pgrx --locked --version '=0.11.4' --force

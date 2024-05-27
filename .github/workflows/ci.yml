@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+  LLVM_CONFIG_PATH: /usr/bin/llvm-config-15
+
+jobs:
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-prgx
+        run: |
+          sudo bash -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          # With clang-14 bindgen runs into strange errors, so use clang-15
+          # instead
+          sudo apt-get install -y clang-15 llvm-15 libclang-15-dev
+          cargo install cargo-pgrx --locked --version '=0.11.0'
+
+          # The following two lines do the setup for PG16 only, this is faster
+          # than doing it for all versions. We'll probably want to start
+          # testing for lower versions when open sourcing this though, so the
+          # commands for that are commented out below.
+          sudo apt-get install -y postgresql-16 postgresql-server-dev-16
+          cargo pgrx init --pg16 /usr/lib/postgresql/16/bin/pg_config
+          # sudo apt-get install -y postgresql-{11,12,13,14,15,16} postgresql-server-dev-{11,12,13,14,15,16}
+          # cargo pgrx init \
+          #   --pg11 /usr/lib/postgresql/11/bin/pg_config \
+          #   --pg12 /usr/lib/postgresql/12/bin/pg_config \
+          #   --pg13 /usr/lib/postgresql/13/bin/pg_config \
+          #   --pg14 /usr/lib/postgresql/14/bin/pg_config \
+          #   --pg15 /usr/lib/postgresql/15/bin/pg_config \
+          #   --pg16 /usr/lib/postgresql/16/bin/pg_config
+
+      - run: cargo clippy -- -D warnings
+      - run: cargo test
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - run: cargo fmt --all -- --check

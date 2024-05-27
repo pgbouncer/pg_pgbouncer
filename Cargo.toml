@@ -1,0 +1,42 @@
+[package]
+name = "pg_pgbouncer"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["pg16"]
+pg11 = ["pgrx/pg11", "pgrx-tests/pg11"]
+pg12 = ["pgrx/pg12", "pgrx-tests/pg12"]
+pg13 = ["pgrx/pg13", "pgrx-tests/pg13"]
+pg14 = ["pgrx/pg14", "pgrx-tests/pg14"]
+pg15 = ["pgrx/pg15", "pgrx-tests/pg15"]
+pg16 = ["pgrx/pg16", "pgrx-tests/pg16"]
+pg_test = []
+
+[dependencies]
+anyhow = { version = "1.0.72", features = ["backtrace"] }
+defaultmap = "0.6.0"
+indoc = "2.0.3"
+nix = { version = "0.26.2", default-features = false, features = ["signal"] }
+num_cpus = "1.16.0"
+pgrx = "=0.11.4"
+postgres = "0.19.7"
+serde = { version = "1.0.186", features = ["derive"] }
+serde_json = "1.0.105"
+serde_with = "3.3.0"
+tempfile = "3.7.0"
+
+[dev-dependencies]
+pgrx-tests = "=0.11.4"
+
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+lto = "fat"
+codegen-units = 1

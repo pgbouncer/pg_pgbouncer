@@ -1,0 +1,6 @@
+comment = 'pg_pgbouncer:  Created by pgrx'
+default_version = '@CARGO_VERSION@'
+module_pathname = '$libdir/pg_pgbouncer'
+relocatable = false
+schema = pg_catalog
+superuser = true
